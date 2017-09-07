@@ -4,20 +4,25 @@ var coinsTexture, coinsGeometry;
 var coinsAnimArray = [];
 var clock = new THREE.Clock();
 
+//SETTINGS
+var numberOfCoins = 60;
+var fountainHeight = 12;
+var fountainWidthX = 3;
+var fountainWidthZ = 0;
 
 init();
 animate();
 
 function init() {
 	scene = new THREE.Scene();
-
+	
 	var SCREEN_WIDTH = window.innerWidth, SCREEN_HEIGHT = window.innerHeight;
-	var VIEW_ANGLE = 75, ASPECT = SCREEN_WIDTH / SCREEN_HEIGHT, NEAR = 0.1, FAR = 1000;
+	var VIEW_ANGLE = 45, ASPECT = SCREEN_WIDTH / SCREEN_HEIGHT, NEAR = 0.1, FAR = 1000;
 	camera = new THREE.PerspectiveCamera(VIEW_ANGLE, ASPECT, NEAR, FAR);
 	scene.add(camera);
-	camera.position.set(0,0,300);	
-
-	renderer = new THREE.WebGLRenderer();
+	camera.position.set(0,0,1000);	
+	
+	renderer = new THREE.WebGLRenderer({ alpha: true });
 	renderer.setSize(SCREEN_WIDTH, SCREEN_HEIGHT);
 	container = document.getElementById('ThreeJS');
 	container.appendChild(renderer.domElement);
@@ -25,39 +30,33 @@ function init() {
 	// MESHES WITH ANIMATED TEXTURES
 	coinsTexture = new THREE.TextureLoader().load('images/coins.png');
 	coinsTexture.needsUpdate = true;
-	coinsTexture.generateMipmaps = false;
-	coinsTexture.magFilter = THREE.LinearFilter;
-	coinsTexture.minFilter = THREE.LinearFilter;
-	coinsGeometry = new THREE.PlaneGeometry(50, 50, 1, 1);
+	coinsGeometry = new THREE.PlaneGeometry(102, 102, 1, 1);
 }
 
 function animate() {
-  setTimeout( function() {
-		requestAnimationFrame( animate );
-		update();
-		render();
-	}, 1000 / 60 );
-
-	
+	requestAnimationFrame( animate );
+	render();
+	update();
 }
 
 function update() {
 	var delta = clock.getDelta(); 
 	
-	if (coinsAnimArray.length < 60){
+	if (coinsAnimArray.length < numberOfCoins){
 		addCoin();
 	}
-
+	
 	for (var coin in coinsAnimArray){
 		coinsAnimArray[coin].update(1000 * delta);
 	}
+
 }
 
 function render() {
 	renderer.render(scene, camera);
 }
 
-function coinAnimator(id, texture, tilesHoriz, tilesVert, numTiles, tileDispDuration, vHoriz, vVert) {	
+function coinAnimator(id, texture, tilesHoriz, tilesVert, numTiles, tileDispDuration, vY, vX, vZ) {	
 	this.coinId = id;
 	
 	this.tilesHorizontal = tilesHoriz;
@@ -70,12 +69,13 @@ function coinAnimator(id, texture, tilesHoriz, tilesVert, numTiles, tileDispDura
 	this.currentDisplayTime = 0;
 	this.currentTile = 0;
 	
-	this.vHoriz = vHoriz;
-	this.vVert = vVert;
+	this.vY = vY;
+	this.vX = vX;
+	this.vZ = vZ;
 	
 	this.update = function(milliSec){
 		var coin = scene.getObjectById(this.coinId, true);
-		if (coin == undefined || coin.position.y <= -200 ){
+		if (coin == undefined || coin.position.y <= -300 ){
 			scene.remove(coin);
 			return;
 		}
@@ -93,34 +93,32 @@ function coinAnimator(id, texture, tilesHoriz, tilesVert, numTiles, tileDispDura
 			texture.offset.y = currentRow / this.tilesVertical;
 		}
 		//Moving
-		if (vHoriz >= -10){
-			this.vHoriz -= milliSec/100;
-			this.vHoriz.toFixed(2)
+		var acceleration = -0.015;
+		if (vY >= -15){
+			this.vY += acceleration*milliSec;
+			this.vY = parseFloat(this.vY);
+			this.vY.toFixed(3);
 		}
-		
-		coin.translateY(this.vHoriz*milliSec/15);
-		coin.translateX(this.vVert*milliSec/15);
-
-		
+		coin.translateY(this.vY*milliSec/20);
+		coin.translateX(this.vX*milliSec/20);
+		coin.translateZ(this.vZ*milliSec/20);
 	};
 }		
 
 function addCoin(){
 	var coinTexture = coinsTexture.clone();
-	coinTexture.generateMipmaps = false;
-	coinTexture.magFilter = THREE.LinearFilter;
-	coinTexture.minFilter = THREE.LinearFilter;
 	coinTexture.needsUpdate = true;
-	var coinMaterial = new THREE.MeshBasicMaterial( { map: coinTexture, side: THREE.DoubleSide, transparent: true } );
+	var coinMaterial = new THREE.MeshBasicMaterial( { map: coinTexture, transparent: true } );
 	var coin = new THREE.Mesh(coinsGeometry, coinMaterial);
 	
-	var randomRotationSpeed = (10+(Math.random()*10)).toFixed(1);
-	var randomHorizVelocity = (5+(Math.random()*5)).toFixed(1);
-	var randomVertVelocity = (-2+(Math.random()*4)).toFixed(1);
-
-	var coinAnim = new coinAnimator(coin.id, coinTexture, 50, 1, 50, randomRotationSpeed, randomHorizVelocity, randomVertVelocity); // id, texture, #horiz, #vert, #total, duration, vHoriz, vVert.
+	var randomRotationDuration = (5+(Math.random()*20)).toFixed(1);
+	var randomYVelocity = (fountainHeight+(Math.random()*0.5*fountainHeight)).toFixed(1);
+	var randomXVelocity = (-fountainWidthX+(Math.random()*2*fountainWidthX)).toFixed(1);
+	var randomZVelocity = (-fountainWidthZ+(Math.random()*fountainWidthZ)).toFixed(1);
+	
+	var coinAnim = new coinAnimator(coin.id, coinTexture, 10, 5, 50, randomRotationDuration, randomYVelocity, randomXVelocity, randomZVelocity); // id, texture, #horiz, #vert, #total, duration, velocityX, velocityY, velocityZ
 	coinsAnimArray.push(coinAnim);
 	coin.position.x = 0;
-	coin.position.y = -100;
+	coin.position.y = -200;
 	scene.add(coin);
 }
